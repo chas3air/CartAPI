@@ -199,7 +199,7 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 	if err = tx.QueryRowxContext(ctx, `
 	SELECT id FROM item
 	WHERE id=$1;
-	`, cartId).Scan(&existsChecker); err != nil {
+	`, itemId).Scan(&existsChecker); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Warn("Cart item doesn't exists", sl.Err(databaseerrors.ErrNotFound))
 			return fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
