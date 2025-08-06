@@ -36,7 +36,7 @@ func New(log *slog.Logger, connStr string) *Storage {
 		log.With("op", op).Error("Error getting work dir", sl.Err(err))
 		panic(fmt.Errorf("%s: %w", op, err))
 	}
-	migrationsPath := filepath.Join(wd, "app", "migrations")
+	migrationsPath := filepath.Join(wd, "migrations")
 
 	if err := goose.Up(db.DB, migrationsPath); err != nil {
 		log.With("op", op).Error("Error applying migrations", sl.Err(err))
