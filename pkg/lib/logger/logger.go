@@ -11,7 +11,7 @@ import (
 func SetupLogger(env string) *slog.Logger {
 	var log *slog.Logger
 
-	file, err := os.OpenFile("/app/log/state.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
+	file, err := os.OpenFile("log/state.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0755)
 	if err != nil {
 		panic("failed to open log file: " + err.Error())
 	}

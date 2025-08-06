@@ -55,6 +55,7 @@ func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
 		db:  db,
 	}
 }
+
 func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
 	const op = "database.psql.CreateCart"
 	log := s.log.With("op", op)

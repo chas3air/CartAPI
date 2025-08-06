@@ -285,15 +285,15 @@ func TestRemoveFromCart_Success(t *testing.T) {
 	cartId := 10
 	itemId := 20
 
-	// Проверка существования корзины
 	mock.ExpectBegin()
 
+	// Проверка существования корзины
 	rows := sqlmock.NewRows([]string{"id"}).AddRow(cartId)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM cart WHERE id=$1;`)).
 		WithArgs(cartId).
 		WillReturnRows(rows)
 
-	// Проверка существования айтема - исправлено на itemId
+	// Проверка сузествования айтема
 	rows = sqlmock.NewRows([]string{"id"}).AddRow(itemId)
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM item WHERE id=$1;`)).
 		WithArgs(itemId).
@@ -488,7 +488,7 @@ func TestViewCart_ScanRowError(t *testing.T) {
 	defer cleanup()
 	ctx := context.Background()
 
-	// Prepare rows with wrong column type to force scan error
+	// Добавление строк в таблицу айтемов
 	rows := sqlmock.NewRows([]string{"item_id", "cart_id", "product", "quantity"}).
 		AddRow("not_an_int", 1, "apple", 3)
 	mock.ExpectQuery(regexp.QuoteMeta(`
