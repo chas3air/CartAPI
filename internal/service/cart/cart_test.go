@@ -5,6 +5,7 @@ import (
 	"cartapi/internal/models"
 	serviceerrors "cartapi/internal/service"
 	cartservice "cartapi/internal/service/cart"
+	"cartapi/internal/service/cart/mocks"
 	"cartapi/pkg/lib/logger/handler/slogdiscard"
 	"context"
 	"errors"
@@ -15,34 +16,13 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockStorage struct {
-	mock.Mock
-}
-
-func (m *MockStorage) CreateCart(ctx context.Context) (models.Cart, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(models.Cart), args.Error(1)
-}
-func (m *MockStorage) AddToCart(ctx context.Context, cartId int, item models.CartItem) (models.CartItem, error) {
-	args := m.Called(ctx, cartId, item)
-	return args.Get(0).(models.CartItem), args.Error(1)
-}
-func (m *MockStorage) RemoveFromCart(ctx context.Context, cartId int, itemId int) error {
-	args := m.Called(ctx, cartId, itemId)
-	return args.Error(0)
-}
-func (m *MockStorage) ViewCart(ctx context.Context, cartId int) (models.Cart, error) {
-	args := m.Called(ctx, cartId)
-	return args.Get(0).(models.Cart), args.Error(1)
-}
-
-func newTestService(storage *MockStorage) *cartservice.CartApiService {
+func newTestService(storage *mocks.MockStorage) *cartservice.CartApiService {
 	logger := slogdiscard.NewDiscardLogger()
 	return cartservice.New(logger, storage)
 }
 func TestCreateCart(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		cart := models.Cart{}
 		mockStorage.On("CreateCart", mock.Anything).Return(models.Cart{}, nil)
 
@@ -55,7 +35,7 @@ func TestCreateCart(t *testing.T) {
 	})
 
 	t.Run("ContextCanceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		svc := newTestService(mockStorage)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -69,7 +49,7 @@ func TestCreateCart(t *testing.T) {
 	})
 
 	t.Run("DeadlineExceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		svc := newTestService(mockStorage)
 
 		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
@@ -82,8 +62,8 @@ func TestCreateCart(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("UnexpectedError", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+	t.Run("Failed to create a cart", func(t *testing.T) {
+		mockStorage := new(mocks.MockStorage)
 		mockStorage.On("CreateCart", mock.Anything).Return(models.Cart{}, errors.New("error"))
 
 		svc := newTestService(mockStorage)
@@ -92,11 +72,37 @@ func TestCreateCart(t *testing.T) {
 
 		mockStorage.AssertExpectations(t)
 	})
+
+	t.Run("DB context canceled", func(t *testing.T) {
+		mockStorage := new(mocks.MockStorage)
+
+		mockStorage.On("CreateCart", mock.Anything).Return(models.Cart{}, context.Canceled)
+
+		svc := newTestService(mockStorage)
+
+		_, err := svc.CreateCart(context.TODO())
+		assert.ErrorIs(t, err, serviceerrors.ErrContextCanceled)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("DB deadline exceeded", func(t *testing.T) {
+		mockStorage := new(mocks.MockStorage)
+
+		mockStorage.On("CreateCart", mock.Anything).Return(models.Cart{}, context.DeadlineExceeded)
+
+		svc := newTestService(mockStorage)
+
+		_, err := svc.CreateCart(context.TODO())
+		assert.ErrorIs(t, err, serviceerrors.ErrDeadlineExceeded)
+
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestAddToCart(t *testing.T) {
 	t.Run("ContextCanceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		svc := newTestService(mockStorage)
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -112,7 +118,7 @@ func TestAddToCart(t *testing.T) {
 	})
 
 	t.Run("DeadlineExceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		svc := newTestService(mockStorage)
 
 		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
@@ -127,22 +133,8 @@ func TestAddToCart(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("UnexpectedError", func(t *testing.T) {
-		mockStorage := new(MockStorage)
-
-		cartId := 0
-		item := models.CartItem{}
-		mockStorage.On("AddToCart", mock.Anything, cartId, item).Return(models.CartItem{}, errors.New("error"))
-		svc := newTestService(mockStorage)
-
-		_, err := svc.AddToCart(context.Background(), cartId, item)
-		assert.NotNil(t, err)
-
-		mockStorage.AssertExpectations(t)
-	})
-
 	t.Run("Success", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		item := models.CartItem{
@@ -162,7 +154,7 @@ func TestAddToCart(t *testing.T) {
 	})
 
 	t.Run("DB context canceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		item := models.CartItem{
@@ -183,7 +175,7 @@ func TestAddToCart(t *testing.T) {
 	})
 
 	t.Run("DB deadline exceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		item := models.CartItem{
@@ -204,7 +196,7 @@ func TestAddToCart(t *testing.T) {
 	})
 
 	t.Run("DB not found", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		item := models.CartItem{
@@ -224,7 +216,7 @@ func TestAddToCart(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 	t.Run("DB unexpected error", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		item := models.CartItem{
@@ -247,7 +239,7 @@ func TestAddToCart(t *testing.T) {
 
 func TestRemoveFromCart(t *testing.T) {
 	t.Run("Context canceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -260,7 +252,7 @@ func TestRemoveFromCart(t *testing.T) {
 	})
 
 	t.Run("Deadline exceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
 
 		time.Sleep(time.Millisecond * 11)
@@ -273,23 +265,8 @@ func TestRemoveFromCart(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Unexpected error", func(t *testing.T) {
-		mockStorage := new(MockStorage)
-
-		cartId := 0
-		itemId := 1
-		mockStorage.On("RemoveFromCart", mock.Anything, cartId, itemId).Return(errors.New("error"))
-
-		svc := newTestService(mockStorage)
-
-		err := svc.RemoveFromCart(context.TODO(), cartId, itemId)
-		assert.NotNil(t, err)
-
-		mockStorage.AssertExpectations(t)
-	})
-
 	t.Run("DB context canceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		itemId := 1
@@ -304,7 +281,7 @@ func TestRemoveFromCart(t *testing.T) {
 	})
 
 	t.Run("DB deadline exceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		itemId := 0
@@ -320,7 +297,7 @@ func TestRemoveFromCart(t *testing.T) {
 	})
 
 	t.Run("DB not found", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		itemId := 0
@@ -336,7 +313,7 @@ func TestRemoveFromCart(t *testing.T) {
 	})
 
 	t.Run("DB unexpected error", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		itemId := 0
@@ -350,11 +327,23 @@ func TestRemoveFromCart(t *testing.T) {
 
 		mockStorage.AssertExpectations(t)
 	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockStorage := new(mocks.MockStorage)
+		mockStorage.On("RemoveFromCart", mock.Anything, 0, 1).Return(nil)
+
+		svc := newTestService(mockStorage)
+
+		err := svc.RemoveFromCart(context.TODO(), 0, 1)
+		assert.Nil(t, err)
+
+		mockStorage.AssertExpectations(t)
+	})
 }
 
 func TestViewCart(t *testing.T) {
 	t.Run("Context canceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
@@ -367,7 +356,7 @@ func TestViewCart(t *testing.T) {
 	})
 
 	t.Run("Deadline exceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond*10)
 
 		time.Sleep(time.Millisecond * 11)
@@ -380,22 +369,8 @@ func TestViewCart(t *testing.T) {
 		mockStorage.AssertExpectations(t)
 	})
 
-	t.Run("Unexpected error", func(t *testing.T) {
-		mockStorage := new(MockStorage)
-
-		cartId := 0
-		mockStorage.On("ViewCart", mock.Anything, cartId).Return(models.Cart{}, errors.New("error"))
-
-		svc := newTestService(mockStorage)
-
-		_, err := svc.ViewCart(context.TODO(), 0)
-		assert.NotNil(t, err)
-
-		mockStorage.AssertExpectations(t)
-	})
-
 	t.Run("DB context canceled", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 		mockStorage.On("ViewCart", mock.Anything, cartId).Return(models.Cart{}, context.Canceled)
@@ -409,7 +384,7 @@ func TestViewCart(t *testing.T) {
 	})
 
 	t.Run("DB deadline exceeded", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 
@@ -424,7 +399,7 @@ func TestViewCart(t *testing.T) {
 	})
 
 	t.Run("DB unexpected error", func(t *testing.T) {
-		mockStorage := new(MockStorage)
+		mockStorage := new(mocks.MockStorage)
 
 		cartId := 0
 
@@ -434,6 +409,28 @@ func TestViewCart(t *testing.T) {
 
 		_, err := svc.ViewCart(context.TODO(), cartId)
 		assert.NotNil(t, err)
+
+		mockStorage.AssertExpectations(t)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mockStorage := new(mocks.MockStorage)
+
+		cartId := 1
+		item := models.CartItem{
+			Id:       2,
+			CartId:   cartId,
+			Product:  "item",
+			Quantity: 3,
+		}
+		mustReturn := models.Cart{Id: cartId, Items: []models.CartItem{item}}
+
+		mockStorage.On("ViewCart", mock.Anything, cartId).Return(mustReturn, nil)
+		svc := newTestService(mockStorage)
+
+		got, err := svc.ViewCart(context.TODO(), cartId)
+		assert.Nil(t, err)
+		assert.Equal(t, mustReturn, got)
 
 		mockStorage.AssertExpectations(t)
 	})
