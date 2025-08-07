@@ -180,6 +180,9 @@ func (c *CartApiService) ViewCart(ctx context.Context, cartId int) (models.Cart,
 		} else if errors.Is(err, context.DeadlineExceeded) {
 			log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
 			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
+		} else if errors.Is(err, databaseerrors.ErrNotFound) {
+			log.Warn("cart not found", sl.Err(serviceerrors.ErrNotFound))
+			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrNotFound)
 		} else {
 			log.Error("Failed to get items from cart", sl.Err(err))
 			return models.Cart{}, fmt.Errorf("%s: %w", op, err)
