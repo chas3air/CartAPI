@@ -4,13 +4,13 @@ import (
 	"cartapi/internal/models"
 	serviceerrors "cartapi/internal/service"
 	"cartapi/pkg/lib/logger/sl"
-	"cartapi/pkg/lib/urlparser"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -60,21 +60,21 @@ func (h *Handler) CreateCart(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(cart); err != nil {
-		log.Error("Failed to responde user", sl.Err(err))
-		http.Error(w, "Failed to responde user", http.StatusInternalServerError)
+		log.Error("Failed to respond user", sl.Err(err))
+		http.Error(w, "Failed to respond user", http.StatusInternalServerError)
 		return
 	}
 }
 
-// POST /carts/cartId/items
-func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request) {
+// POST /carts/{cartId}/items
+func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request, cartIdStr string) {
 	const op = "handlers.cart.AddToCart"
 	log := h.log.With("op", op)
 
-	parameters, err := urlparser.ParseCartPath(r.URL.Path)
-	if err != nil {
-		log.Error("Invalid cartId", sl.Err(err))
-		http.Error(w, "Invalid cartId", http.StatusBadRequest)
+	cartId, err := strconv.Atoi(cartIdStr)
+	if err != nil || cartId <= 0 {
+		log.Error("Invalid cartId parameter", sl.Err(err))
+		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	insertedItem, err := h.service.AddToCart(r.Context(), parameters.CartId, item)
+	insertedItem, err := h.service.AddToCart(r.Context(), cartId, item)
 	if err != nil {
 		if errors.Is(err, serviceerrors.ErrContextCanceled) {
 			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
@@ -124,19 +124,25 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DELETE /carts/cartId/items/itemId
-func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request) {
+// DELETE /carts/{cartId}/items/{itemId}
+func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request, cartIdStr string, itemIdStr string) {
 	const op = "handlers.cart.RemoveFromCart"
 	log := h.log.With("op", op)
 
-	parameters, err := urlparser.ParseCartPath(r.URL.Path)
-	if err != nil {
-		log.Error("Invalid arguments", sl.Err(err))
-		http.Error(w, "Invalid arguments", http.StatusBadRequest)
+	cartId, err := strconv.Atoi(cartIdStr)
+	if err != nil || cartId <= 0 {
+		log.Error("Invalid cartId parameter", sl.Err(err))
+		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
+		return
+	}
+	itemId, err := strconv.Atoi(itemIdStr)
+	if err != nil || itemId <= 0 {
+		log.Error("Invalid itemId parameter", sl.Err(err))
+		http.Error(w, "Invalid item ID", http.StatusBadRequest)
 		return
 	}
 
-	err = h.service.RemoveFromCart(r.Context(), parameters.CartId, parameters.ItemId)
+	err = h.service.RemoveFromCart(r.Context(), cartId, itemId)
 	if err != nil {
 		if errors.Is(err, serviceerrors.ErrContextCanceled) {
 			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
@@ -147,7 +153,7 @@ func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
 			return
 		} else if errors.Is(err, serviceerrors.ErrNotFound) {
-			log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
+			log.Warn("Cart or item not found", sl.Err(serviceerrors.ErrNotFound))
 			http.NotFound(w, r)
 			return
 		} else {
@@ -160,19 +166,19 @@ func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GET /carts/cartId
-func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request) {
+// GET /carts/{cartId}
+func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request, cartIdStr string) {
 	const op = "handlers.cart.ViewCart"
 	log := h.log.With("op", op)
 
-	parameters, err := urlparser.ParseCartPath(r.URL.Path)
-	if err != nil {
-		log.Error("Invalid arguments", sl.Err(err))
-		http.Error(w, "Invalid arguments", http.StatusBadRequest)
+	cartId, err := strconv.Atoi(cartIdStr)
+	if err != nil || cartId <= 0 {
+		log.Error("Invalid cartId parameter", sl.Err(err))
+		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
 		return
 	}
 
-	cart, err := h.service.ViewCart(r.Context(), parameters.CartId)
+	cart, err := h.service.ViewCart(r.Context(), cartId)
 	if err != nil {
 		if errors.Is(err, serviceerrors.ErrContextCanceled) {
 			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
@@ -193,11 +199,10 @@ func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(cart); err != nil {
-		log.Error("Failed to responde user", sl.Err(err))
-		http.Error(w, "Failed to responde user", http.StatusInternalServerError)
+		log.Error("Failed to respond user", sl.Err(err))
+		http.Error(w, "Failed to respond user", http.StatusInternalServerError)
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
