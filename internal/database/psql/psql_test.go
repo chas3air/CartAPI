@@ -435,3 +435,34 @@ func TestViewCart_QueryError(t *testing.T) {
 		t.Errorf("unfulfilled expectations: %s", err)
 	}
 }
+
+func TestViewCart_Success(t *testing.T) {
+	storage, mock, cleanup := newTestStorage(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	rows := sqlmock.NewRows([]string{"id", "cart_id", "product", "quantity"}).
+		AddRow(11, 1, "apple", 3).
+		AddRow(12, 1, "banana", 5)
+
+	mock.ExpectQuery(regexp.QuoteMeta(`
+        SELECT id, cart_id, product, quantity FROM item WHERE cart_id=$1;
+    `)).WithArgs(1).WillReturnRows(rows)
+
+	cart, err := storage.ViewCart(ctx, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cart.Id != 1 {
+		t.Errorf("expected cart id 1, got %d", cart.Id)
+	}
+
+	if cart.Items[0].Product != "apple" || cart.Items[1].Product != "banana" {
+		t.Errorf("unexpected products in cart items")
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unfulfilled expectations: %s", err)
+	}
+}

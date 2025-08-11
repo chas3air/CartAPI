@@ -217,7 +217,7 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 	var itemsByCartId []models.CartItem
 	for rows.Next() {
 		var tmpItem models.CartItem
-		if err := rows.StructScan(&tmpItem); err != nil {
+		if err := rows.Scan(&tmpItem.Id, &tmpItem.CartId, &tmpItem.Product, &tmpItem.Quantity); err != nil {
 			log.Error("Failed to scan row", sl.Err(err))
 			continue
 		}
