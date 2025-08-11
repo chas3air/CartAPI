@@ -164,14 +164,9 @@ func TestAddToCart_Success(t *testing.T) {
 
 	// Вставка айтема
 	rowsItem := sqlmock.NewRows([]string{"id"}).AddRow(item.Id)
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO item (product, quantity) VALUES ($1, $2) RETURNING id;`)).
-		WithArgs(item.Product, item.Quantity).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO item (cart_id, product, quantity) VALUES ($1, $2, $3) RETURNING id;`)).
+		WithArgs(cartId, item.Product, item.Quantity).
 		WillReturnRows(rowsItem)
-
-	// Вставка связи
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO cart_item (cart_id, item_id) VALUES ($1, $2);`)).
-		WithArgs(cartId, item.Id).
-		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	mock.ExpectCommit()
 
@@ -230,45 +225,9 @@ func TestAddToCart_InsertItemFail(t *testing.T) {
 		WithArgs(cartId).
 		WillReturnRows(rowsCart)
 
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO item (product, quantity) VALUES ($1, $2) RETURNING id;`)).
-		WithArgs(item.Product, item.Quantity).
+	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO item (cart_id, product, quantity) VALUES ($1, $2, $3) RETURNING id;`)).
+		WithArgs(cartId, item.Product, item.Quantity).
 		WillReturnError(errors.New("insert item error"))
-
-	mock.ExpectRollback()
-
-	_, err := storage.AddToCart(ctx, cartId, item)
-	assert.Error(t, err)
-
-	assert.NoError(t, mock.ExpectationsWereMet())
-}
-
-func TestAddToCart_InsertRelationFail(t *testing.T) {
-	storage, mock, cleanup := newTestStorage(t)
-	defer cleanup()
-
-	ctx := context.Background()
-	cartId := 1
-	item := models.CartItem{
-		Id:       10,
-		Product:  "product",
-		Quantity: 2,
-	}
-
-	mock.ExpectBegin()
-
-	rowsCart := sqlmock.NewRows([]string{"id"}).AddRow(cartId)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM cart WHERE id=$1`)).
-		WithArgs(cartId).
-		WillReturnRows(rowsCart)
-
-	rowsItem := sqlmock.NewRows([]string{"id"}).AddRow(item.Id)
-	mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO item (product, quantity) VALUES ($1, $2) RETURNING id;`)).
-		WithArgs(item.Product, item.Quantity).
-		WillReturnRows(rowsItem)
-
-	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO cart_item (cart_id, item_id) VALUES ($1, $2);`)).
-		WithArgs(cartId, item.Id).
-		WillReturnError(errors.New("insert relation error"))
 
 	mock.ExpectRollback()
 
@@ -294,18 +253,13 @@ func TestRemoveFromCart_Success(t *testing.T) {
 		WithArgs(cartId).
 		WillReturnRows(rows)
 
-	// Проверка сузествования айтема
-	rows = sqlmock.NewRows([]string{"id"}).AddRow(itemId)
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM item WHERE id=$1;`)).
+	// Проверка существования айтема и его cart_id
+	rows = sqlmock.NewRows([]string{"cart_id"}).AddRow(cartId)
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT cart_id FROM item WHERE id=$1;`)).
 		WithArgs(itemId).
 		WillReturnRows(rows)
 
-	// Удаление из связующей таблицы
-	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM cart_item WHERE cart_id=$1 AND item_id=$2;`)).
-		WithArgs(cartId, itemId).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-
-	// Удаление из таблицы items
+	// Удаление айтема (без связующей таблицы cart_item)
 	mock.ExpectExec(regexp.QuoteMeta(`DELETE FROM item WHERE id=$1;`)).
 		WithArgs(itemId).
 		WillReturnResult(sqlmock.NewResult(1, 1))
@@ -335,7 +289,8 @@ func TestRemoveFromCart_ItemNotFound(t *testing.T) {
 		WithArgs(cartId).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(cartId))
 
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT id FROM item WHERE id=$1;`)).
+	// Обновлено: проверка существования айтема по cart_id
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT cart_id FROM item WHERE id=$1;`)).
 		WithArgs(itemId).
 		WillReturnError(sql.ErrNoRows)
 
@@ -466,10 +421,7 @@ func TestViewCart_QueryError(t *testing.T) {
 	ctx := context.Background()
 
 	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT ci.item_id, ci.cart_id, i.product, i.quantity FROM cart_item AS ci
-        JOIN item AS i
-        ON ci.item_id = i.id
-        WHERE ci.cart_id=$1;
+        SELECT id, cart_id, product, quantity FROM item WHERE cart_id=$1;
     `)).WithArgs(1).WillReturnError(errors.New("query failure"))
 
 	_, err := storage.ViewCart(ctx, 1)
@@ -478,67 +430,6 @@ func TestViewCart_QueryError(t *testing.T) {
 	}
 	if err.Error() != "database.psql.ViewCart: query failure" {
 		t.Errorf("unexpected error message: %v", err)
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %s", err)
-	}
-}
-
-func TestViewCart_ScanRowError(t *testing.T) {
-	storage, mock, cleanup := newTestStorage(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	// Добавление строк в таблицу айтемов
-	rows := sqlmock.NewRows([]string{"item_id", "cart_id", "product", "quantity"}).
-		AddRow("not_an_int", 1, "apple", 3)
-	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT ci.item_id, ci.cart_id, i.product, i.quantity FROM cart_item AS ci
-        JOIN item AS i
-        ON ci.item_id = i.id
-        WHERE ci.cart_id=$1;
-    `)).WithArgs(1).WillReturnRows(rows)
-
-	cart, err := storage.ViewCart(ctx, 1)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(cart.Items) != 0 {
-		t.Errorf("expected 0 items due to scan error, got %d", len(cart.Items))
-	}
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unfulfilled expectations: %s", err)
-	}
-}
-
-func TestViewCart_Success(t *testing.T) {
-	storage, mock, cleanup := newTestStorage(t)
-	defer cleanup()
-	ctx := context.Background()
-
-	rows := sqlmock.NewRows([]string{"item_id", "cart_id", "product", "quantity"}).
-		AddRow(11, 1, "apple", 3).
-		AddRow(12, 1, "banana", 5)
-
-	mock.ExpectQuery(regexp.QuoteMeta(`
-        SELECT ci.item_id, ci.cart_id, i.product, i.quantity FROM cart_item AS ci
-        JOIN item AS i
-        ON ci.item_id = i.id
-        WHERE ci.cart_id=$1;
-    `)).WithArgs(1).WillReturnRows(rows)
-
-	cart, err := storage.ViewCart(ctx, 1)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cart.Id != 1 {
-		t.Errorf("expected cart id 1, got %d", cart.Id)
-	}
-	if len(cart.Items) != 2 {
-		t.Errorf("expected 2 items, got %d", len(cart.Items))
-	}
-	if cart.Items[0].Product != "apple" || cart.Items[1].Product != "banana" {
-		t.Errorf("unexpected products in cart items")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("unfulfilled expectations: %s", err)

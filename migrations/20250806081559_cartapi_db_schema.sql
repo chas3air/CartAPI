@@ -8,24 +8,14 @@ CREATE TABLE cart (
 -- +goose StatementBegin
 CREATE TABLE item (
     id SERIAL PRIMARY KEY,
-    product VARCHAR(50),
-    quantity INT
-);
--- +goose StatementEnd
-
--- +goose StatementBegin
-CREATE TABLE cart_item (
-    id SERIAL PRIMARY KEY,
-    cart_id INT,
-    item_id INT,
-    FOREIGN KEY (cart_id) REFERENCES cart(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES item(id) ON DELETE CASCADE
+    cart_id INT NOT NULL,
+    product VARCHAR(50) NOT NULL,
+    quantity INT NOT NULL
 );
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP TABLE cart_item;
 DROP TABLE item;
 DROP TABLE cart;
 -- +goose StatementEnd

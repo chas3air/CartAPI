@@ -56,6 +56,10 @@ func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
 	}
 }
 
+func (s *Storage) Close() {
+	s.db.Close()
+}
+
 func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
 	const op = "database.psql.CreateCart"
 	log := s.log.With("op", op)
@@ -83,9 +87,7 @@ func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
 
 func (s *Storage) AddToCart(ctx context.Context, cartId int, item models.CartItem) (models.CartItem, error) {
 	const op = "database.psql.AddToCart"
-	log := s.log.With(
-		"op", op,
-	)
+	log := s.log.With("op", op)
 
 	select {
 	case <-ctx.Done():
@@ -94,55 +96,33 @@ func (s *Storage) AddToCart(ctx context.Context, cartId int, item models.CartIte
 	default:
 	}
 
-	// TODO: начать транзакцию
-
 	tx, err := s.db.Beginx()
 	if err != nil {
-		log.Error("Fialed to bigin transaction", sl.Err(err))
+		log.Error("Failed to begin transaction", sl.Err(err))
 		return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
 	}
 	defer tx.Rollback()
 
-	// TODO: проверить есть ли такая корзина
-
 	var existsChecker int
-	if err = tx.QueryRowxContext(ctx, `
-    	SELECT id FROM cart
-    	WHERE id=$1;
-	`, cartId).Scan(&existsChecker); err != nil {
+	if err = tx.QueryRowxContext(ctx, `SELECT id FROM cart WHERE id=$1;`, cartId).Scan(&existsChecker); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Warn("Cart doesn't exists", sl.Err(databaseerrors.ErrNotFound))
+			log.Warn("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
 			return models.CartItem{}, fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 		}
-
 		log.Error("Error checking cart existence", sl.Err(err))
 		return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	// TODO: добавить товар в таблицу с айтемами
-
 	var itemId int
 	row := tx.QueryRowxContext(ctx, `
-		INSERT INTO item (product, quantity)
-		VALUES ($1, $2)
+		INSERT INTO item (cart_id, product, quantity)
+		VALUES ($1, $2, $3)
 		RETURNING id;
-	`, item.Product, item.Quantity)
+  `, cartId, item.Product, item.Quantity)
 	if err := row.Scan(&itemId); err != nil {
-		log.Error("Failed to insert item to cart", sl.Err(err))
+		log.Error("Failed to insert item", sl.Err(err))
 		return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
 	}
-
-	// TODO: добавить товар в связующую таблицу
-
-	if _, err := tx.ExecContext(ctx, `
-	INSERT INTO cart_item (cart_id, item_id)
-	VALUES ($1, $2);
-	`, cartId, itemId); err != nil {
-		log.Error("Failed to insert data to related table", sl.Err(err))
-		return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
-	}
-
-	// TODO: закончить транзакцию
 
 	if err := tx.Commit(); err != nil {
 		log.Error("Failed to commit transaction", sl.Err(err))
@@ -159,9 +139,7 @@ func (s *Storage) AddToCart(ctx context.Context, cartId int, item models.CartIte
 
 func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) error {
 	const op = "database.psql.RemoveFromCart"
-	log := s.log.With(
-		"op", op,
-	)
+	log := s.log.With("op", op)
 
 	select {
 	case <-ctx.Done():
@@ -170,67 +148,42 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 	default:
 	}
 
-	// TODO: начать транзакцию
-
 	tx, err := s.db.Beginx()
 	if err != nil {
-		log.Error("Fialed to bigin transaction", sl.Err(err))
+		log.Error("Failed to begin transaction", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 	defer tx.Rollback()
 
-	// TODO: проверить есть ли такая корзина
-
 	var existsChecker int
-	if err = tx.QueryRowxContext(ctx, `
-    	SELECT id FROM cart
-    	WHERE id=$1;
-	`, cartId).Scan(&existsChecker); err != nil {
+	if err = tx.QueryRowxContext(ctx, `SELECT id FROM cart WHERE id=$1;`, cartId).Scan(&existsChecker); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Warn("Cart doesn't exists", sl.Err(databaseerrors.ErrNotFound))
+			log.Warn("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
 			return fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 		}
-
 		log.Error("Error checking cart existence", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	// TODO: проверить, если такой элемент в таблице с айтемами
-
-	if err = tx.QueryRowxContext(ctx, `
-	SELECT id FROM item
-	WHERE id=$1;
-	`, itemId).Scan(&existsChecker); err != nil {
+	var itemCartId int
+	if err = tx.QueryRowxContext(ctx, `SELECT cart_id FROM item WHERE id=$1;`, itemId).Scan(&itemCartId); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			log.Warn("Cart item doesn't exists", sl.Err(databaseerrors.ErrNotFound))
+			log.Warn("Cart item doesn't exist", sl.Err(databaseerrors.ErrNotFound))
 			return fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 		}
-
 		log.Error("Error checking cart item existence", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	// TODO: удалить запись из связующей таблицы
-
-	if _, err := tx.ExecContext(ctx, `
-		DELETE FROM cart_item
-		WHERE cart_id=$1 AND item_id=$2;
-	`, cartId, itemId); err != nil {
-		log.Error("Failed to delete item from related table", sl.Err(err))
-		return fmt.Errorf("%s: %w", op, err)
+	if itemCartId != cartId {
+		log.Warn("Item does not belong to the specified cart")
+		return fmt.Errorf("%s: item does not belong to cart", op)
 	}
 
-	// TODO: удалить запись из таблицы с айтемами
-
-	if _, err := tx.ExecContext(ctx, `
-		DELETE FROM item
-		WHERE id=$1;
-	`, itemId); err != nil {
-		log.Error("Failedto delete item from items table", sl.Err(err))
+	if _, err := tx.ExecContext(ctx, `DELETE FROM item WHERE id=$1;`, itemId); err != nil {
+		log.Error("Failed to delete item", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
-
-	// TODO: закончить транзакцию
 
 	if err := tx.Commit(); err != nil {
 		log.Error("Failed to commit transaction", sl.Err(err))
@@ -242,9 +195,7 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 
 func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error) {
 	const op = "database.psql.ViewCart"
-	log := s.log.With(
-		"op", op,
-	)
+	log := s.log.With("op", op)
 
 	select {
 	case <-ctx.Done():
@@ -254,25 +205,22 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 	}
 
 	rows, err := s.db.QueryxContext(ctx, `
-		SELECT ci.item_id, ci.cart_id, i.product, i.quantity FROM cart_item AS ci
-		JOIN item AS i
-		ON ci.item_id = i.id
-		WHERE ci.cart_id=$1;
-	`, cartId)
+    SELECT id, cart_id, product, quantity FROM item
+    WHERE cart_id=$1;
+  `, cartId)
 	if err != nil {
-		log.Error("Failed to scan rows", sl.Err(err))
+		log.Error("Failed to query items", sl.Err(err))
 		return models.Cart{}, fmt.Errorf("%s: %w", op, err)
 	}
 	defer rows.Close()
 
-	var itemsByCartId = make([]models.CartItem, 0, 10)
-	var tmpItem models.CartItem
+	var itemsByCartId []models.CartItem
 	for rows.Next() {
-		if err := rows.Scan(&tmpItem.Id, &tmpItem.CartId, &tmpItem.Product, &tmpItem.Quantity); err != nil {
+		var tmpItem models.CartItem
+		if err := rows.StructScan(&tmpItem); err != nil {
 			log.Error("Failed to scan row", sl.Err(err))
 			continue
 		}
-
 		itemsByCartId = append(itemsByCartId, tmpItem)
 	}
 
