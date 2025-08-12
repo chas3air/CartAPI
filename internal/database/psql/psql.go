@@ -215,9 +215,9 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 	}
 
 	rows, err := s.db.QueryxContext(ctx, `
-    SELECT id, cart_id, product, quantity FROM item
-    WHERE cart_id=$1;
-  `, cartId)
+	SELECT id, cart_id, product, quantity FROM item
+	WHERE cart_id=$1;
+`, cartId)
 	if err != nil {
 		log.Error("Failed to query items", sl.Err(err))
 		return models.Cart{}, fmt.Errorf("%s: %w", op, err)
