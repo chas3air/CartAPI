@@ -175,11 +175,6 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	if itemCartId != cartId {
-		log.Warn("Item does not belong to the specified cart")
-		return fmt.Errorf("%s: item does not belong to cart", op)
-	}
-
 	if _, err := tx.ExecContext(ctx, `DELETE FROM item WHERE id=$1;`, itemId); err != nil {
 		log.Error("Failed to delete item", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
@@ -202,6 +197,21 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 		log.Error("Context is over", sl.Err(ctx.Err()))
 		return models.Cart{}, fmt.Errorf("%s: %w", op, ctx.Err())
 	default:
+	}
+
+	var count int
+	row := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM cart WHERE id=$1;
+	`, cartId)
+
+	if err := row.Scan(&count); err != nil {
+		log.Error("Failed to check cart existence", sl.Err(err))
+		return models.Cart{}, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if count == 0 {
+		log.Error("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
+		return models.Cart{}, fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 	}
 
 	rows, err := s.db.QueryxContext(ctx, `

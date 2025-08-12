@@ -3,12 +3,12 @@ package app
 import (
 	carthandler "cartapi/internal/handlers/cart"
 	"cartapi/internal/models"
+	"cartapi/internal/routes"
 	cartservice "cartapi/internal/service/cart"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 )
 
 type CartItemStorage interface {
@@ -44,42 +44,8 @@ func (a *App) Run() error {
 	cartItemService := cartservice.New(a.log, a.storage)
 	cartItemHandler := carthandler.New(a.log, cartItemService)
 
-	http.HandleFunc("/carts", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
-			cartItemHandler.CreateCart(w, r)
-			return
-		}
-		http.NotFound(w, r)
-	})
-
-	http.HandleFunc("/carts/", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.Trim(r.URL.Path, "/")
-		parts := strings.Split(path, "/")
-
-		if len(parts) == 2 && r.Method == http.MethodGet {
-			// GET /carts/{cartId}
-			cartId := parts[1]
-			cartItemHandler.ViewCart(w, r, cartId)
-			return
-		}
-
-		if len(parts) == 3 && parts[2] == "items" && r.Method == http.MethodPost {
-			// POST /carts/{cartId}/items
-			cartId := parts[1]
-			cartItemHandler.AddToCart(w, r, cartId)
-			return
-		}
-
-		if len(parts) == 4 && parts[2] == "items" && r.Method == http.MethodDelete {
-			// DELETE /carts/{cartId}/items/{itemId}
-			cartId := parts[1]
-			itemId := parts[3]
-			cartItemHandler.RemoveFromCart(w, r, cartId, itemId)
-			return
-		}
-
-		http.NotFound(w, r)
-	})
+	router := routes.New(cartItemHandler)
+	router.Register()
 
 	if err := http.ListenAndServe(
 		fmt.Sprintf(":%d", a.port),

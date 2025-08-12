@@ -7,6 +7,7 @@ import (
 	"cartapi/pkg/lib/logger"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -23,7 +24,10 @@ func main() {
 		storage,
 	)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		application.MustRun()
 	}()
 
@@ -33,4 +37,6 @@ func main() {
 
 	log.Info("Closing database")
 	storage.Close()
+
+	wg.Wait()
 }
