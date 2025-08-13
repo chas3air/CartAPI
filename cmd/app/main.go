@@ -12,11 +12,20 @@ import (
 )
 
 func main() {
-	cfg := config.MustLoad()
+	cfg, err := config.Load()
+	if err != nil {
+		panic(err)
+	}
 
-	log := logger.SetupLogger(cfg.HTTP.Env)
+	log, err := logger.SetupLogger(cfg.HTTP.Env)
+	if err != nil {
+		panic(err)
+	}
 
-	storage := psql.New(log, cfg.ConnectionString())
+	storage, err := psql.New(log, cfg.ConnectionString())
+	if err != nil {
+		panic(err)
+	}
 
 	application := app.New(
 		log,

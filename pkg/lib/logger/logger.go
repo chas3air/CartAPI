@@ -3,12 +3,13 @@ package logger
 import (
 	constants "cartapi/pkg/config"
 	"cartapi/pkg/lib/logger/handler/slogpretty"
+	"errors"
 
 	"log/slog"
 	"os"
 )
 
-func SetupLogger(env string) *slog.Logger {
+func SetupLogger(env string) (*slog.Logger, error) {
 	var log *slog.Logger
 
 	switch env {
@@ -22,9 +23,11 @@ func SetupLogger(env string) *slog.Logger {
 		log = slog.New(
 			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}),
 		)
+	default:
+		return nil, errors.New("failed to init logger: wrong env variable")
 	}
 
-	return log
+	return log, nil
 }
 
 func setupPrettySlog() *slog.Logger {
