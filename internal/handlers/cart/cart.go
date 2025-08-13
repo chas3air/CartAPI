@@ -43,19 +43,8 @@ func (h *Handler) CreateCart(w http.ResponseWriter, r *http.Request) {
 
 	cart, err := h.service.CreateCart(r.Context())
 	if err != nil {
-		if errors.Is(err, serviceerrors.ErrContextCanceled) {
-			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			http.Error(w, "Context canceled", StatusClientClosedRequest)
-			return
-		} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
-			log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
-			return
-		} else {
-			log.Error("Failed to create cart", sl.Err(err))
-			http.Error(w, "Failed to create cart", http.StatusInternalServerError)
-			return
-		}
+		handleServiceError(w, log, err, "Failed to create cart")
+		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -71,8 +60,8 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request, cartIdStr st
 	const op = "handlers.cart.AddToCart"
 	log := h.log.With("op", op)
 
-	cartId, err := strconv.Atoi(cartIdStr)
-	if err != nil || cartId <= 0 {
+	cartId, err := parseCartID(cartIdStr)
+	if err != nil {
 		log.Error("Invalid cartId parameter", sl.Err(err))
 		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
 		return
@@ -101,19 +90,8 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request, cartIdStr st
 
 	insertedItem, err := h.service.AddToCart(r.Context(), cartId, item)
 	if err != nil {
-		if errors.Is(err, serviceerrors.ErrContextCanceled) {
-			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			http.Error(w, "Context canceled", StatusClientClosedRequest)
-			return
-		} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
-			log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
-			return
-		} else {
-			log.Error("Failed to add to cart", sl.Err(err))
-			http.Error(w, "Failed to add to cart", http.StatusInternalServerError)
-			return
-		}
+		handleServiceError(w, log, err, "Failed to add to cart")
+		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
@@ -129,14 +107,15 @@ func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request, cartIdS
 	const op = "handlers.cart.RemoveFromCart"
 	log := h.log.With("op", op)
 
-	cartId, err := strconv.Atoi(cartIdStr)
-	if err != nil || cartId <= 0 {
+	cartId, err := parseCartID(cartIdStr)
+	if err != nil {
 		log.Error("Invalid cartId parameter", sl.Err(err))
 		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
 		return
 	}
-	itemId, err := strconv.Atoi(itemIdStr)
-	if err != nil || itemId <= 0 {
+
+	itemId, err := parseItemID(itemIdStr)
+	if err != nil {
 		log.Error("Invalid itemId parameter", sl.Err(err))
 		http.Error(w, "Invalid item ID", http.StatusBadRequest)
 		return
@@ -144,23 +123,8 @@ func (h *Handler) RemoveFromCart(w http.ResponseWriter, r *http.Request, cartIdS
 
 	err = h.service.RemoveFromCart(r.Context(), cartId, itemId)
 	if err != nil {
-		if errors.Is(err, serviceerrors.ErrContextCanceled) {
-			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			http.Error(w, "Context canceled", StatusClientClosedRequest)
-			return
-		} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
-			log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
-			return
-		} else if errors.Is(err, serviceerrors.ErrNotFound) {
-			log.Warn("Cart or item not found", sl.Err(serviceerrors.ErrNotFound))
-			http.NotFound(w, r)
-			return
-		} else {
-			log.Error("Failed to remove from cart", sl.Err(err))
-			http.Error(w, "Failed to remove from cart", http.StatusInternalServerError)
-			return
-		}
+		handleServiceError(w, log, err, "Failed to remove from cart")
+		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -171,8 +135,8 @@ func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request, cartIdStr str
 	const op = "handlers.cart.ViewCart"
 	log := h.log.With("op", op)
 
-	cartId, err := strconv.Atoi(cartIdStr)
-	if err != nil || cartId <= 0 {
+	cartId, err := parseCartID(cartIdStr)
+	if err != nil {
 		log.Error("Invalid cartId parameter", sl.Err(err))
 		http.Error(w, "Invalid cart ID", http.StatusBadRequest)
 		return
@@ -180,23 +144,8 @@ func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request, cartIdStr str
 
 	cart, err := h.service.ViewCart(r.Context(), cartId)
 	if err != nil {
-		if errors.Is(err, serviceerrors.ErrContextCanceled) {
-			log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			http.Error(w, "Context canceled", StatusClientClosedRequest)
-			return
-		} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
-			log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
-			return
-		} else if errors.Is(err, serviceerrors.ErrNotFound) {
-			log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
-			http.NotFound(w, r)
-			return
-		} else {
-			log.Error("Failed to view the cart", sl.Err(err))
-			http.Error(w, "Failed to view the cart", http.StatusInternalServerError)
-			return
-		}
+		handleServiceError(w, log, err, "Failed to view the cart")
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -205,4 +154,36 @@ func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request, cartIdStr str
 		http.Error(w, "Failed to respond user", http.StatusInternalServerError)
 		return
 	}
+}
+
+func handleServiceError(w http.ResponseWriter, log *slog.Logger, err error, msg string) {
+	if errors.Is(err, serviceerrors.ErrContextCanceled) {
+		log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
+		http.Error(w, "Context canceled", StatusClientClosedRequest)
+	} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
+		log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
+		http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
+	} else if errors.Is(err, serviceerrors.ErrNotFound) {
+		log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
+		http.Error(w, "Cart not found", http.StatusNotFound)
+	} else {
+		log.Error("Failed to view the cart", sl.Err(err))
+		http.Error(w, "Failed to view the cart", http.StatusInternalServerError)
+	}
+}
+
+func parseCartID(cartIdStr string) (int, error) {
+	id, err := strconv.Atoi(cartIdStr)
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid cartId, must be a positive integer")
+	}
+	return id, nil
+}
+
+func parseItemID(itemIdStr string) (int, error) {
+	id, err := strconv.Atoi(itemIdStr)
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid itemId, must be a positive integer")
+	}
+	return id, nil
 }
