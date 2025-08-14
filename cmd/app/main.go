@@ -5,9 +5,9 @@ import (
 	"cartapi/internal/database/psql"
 	"cartapi/pkg/config"
 	"cartapi/pkg/lib/logger"
+	"cartapi/pkg/lib/logger/sl"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 )
 
@@ -33,11 +33,11 @@ func main() {
 		storage,
 	)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		application.MustRun()
+		if err := application.Run(); err != nil {
+			log.Error("Application failed to start", sl.Err(err))
+			panic(err)
+		}
 	}()
 
 	done := make(chan os.Signal, 1)
@@ -46,6 +46,4 @@ func main() {
 
 	log.Info("Closing database")
 	storage.Close()
-
-	wg.Wait()
 }

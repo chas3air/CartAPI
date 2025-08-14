@@ -5,10 +5,15 @@ import (
 	"cartapi/internal/models"
 	"cartapi/internal/routes"
 	cartservice "cartapi/internal/service/cart"
+	"cartapi/pkg/lib/logger/sl"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 type CartItemStorage interface {
@@ -22,6 +27,7 @@ type App struct {
 	log     *slog.Logger
 	port    int
 	storage CartItemStorage
+	server  *http.Server
 }
 
 func New(log *slog.Logger, port int, storage CartItemStorage) *App {
@@ -29,12 +35,6 @@ func New(log *slog.Logger, port int, storage CartItemStorage) *App {
 		log:     log,
 		port:    port,
 		storage: storage,
-	}
-}
-
-func (a *App) MustRun() {
-	if err := a.Run(); err != nil {
-		panic(err)
 	}
 }
 
@@ -47,10 +47,26 @@ func (a *App) Run() error {
 	router := routes.New(cartItemHandler)
 	router.Register()
 
-	if err := http.ListenAndServe(
-		fmt.Sprintf(":%d", a.port),
-		nil,
-	); err != nil {
+	a.server = &http.Server{
+		Addr:    fmt.Sprintf(":%d", a.port),
+		Handler: nil,
+	}
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			a.log.Error("Server failed to start", sl.Err(err))
+		}
+	}()
+
+	<-signalChan
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	if err := a.server.Shutdown(ctx); err != nil {
+		a.log.Error("failed to shutdown server", sl.Err(err))
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
