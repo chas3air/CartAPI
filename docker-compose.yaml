@@ -1,6 +1,9 @@
 networks:
   cartapi_net:
 
+volumes:
+  cartapi_psql_volume:
+
 services:
   psql:
     image: postgres:latest
@@ -18,6 +21,9 @@ services:
       interval: 5s
       timeout: 10s
       retries: 5
+    restart: unless-stopped
+    volumes:
+    - cartapi_psql_volume:/var/lib/postgresql/data
 
   app:
     build:

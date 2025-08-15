@@ -23,30 +23,30 @@ type Storage struct {
 	db  *sqlx.DB
 }
 
-func New(log *slog.Logger, connStr string) *Storage {
+func New(log *slog.Logger, connStr string) (*Storage, error) {
 	const op = "database.psql.New"
 	db, err := sqlx.Connect("postgres", connStr)
 	if err != nil {
 		log.With("op", op).Error("Error connect to database", sl.Err(err))
-		panic(fmt.Errorf("%s: %w", op, err))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
 		log.With("op", op).Error("Error getting work dir", sl.Err(err))
-		panic(fmt.Errorf("%s: %w", op, err))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	migrationsPath := filepath.Join(wd, "migrations")
 
 	if err := goose.Up(db.DB, migrationsPath); err != nil {
 		log.With("op", op).Error("Error applying migrations", sl.Err(err))
-		panic(fmt.Errorf("%s: %w", op, err))
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return &Storage{
 		log: log,
 		db:  db,
-	}
+	}, nil
 }
 
 func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
@@ -56,8 +56,11 @@ func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
 	}
 }
 
-func (s *Storage) Close() {
-	s.db.Close()
+func (s *Storage) Close() error {
+	if err := s.db.Close(); err != nil {
+		return fmt.Errorf("failed to close database connection: %w", err)
+	}
+	return nil
 }
 
 func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
@@ -210,7 +213,7 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 	}
 
 	if count == 0 {
-		log.Error("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
+		log.Warn("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
 		return models.Cart{}, fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 	}
 

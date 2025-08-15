@@ -1,0 +1,133 @@
+{
+	"info": {
+		"_postman_id": "a0e9f978-d170-483f-ab43-15aa5d6ff086",
+		"name": "CartAPI",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "37501267",
+		"_collection_link": "https://inno44-3639.postman.co/workspace/a34154fb-b4e4-4f77-aef0-58f7c07df376/collection/37501267-a0e9f978-d170-483f-ab43-15aa5d6ff086?action=share&source=collection_link&creator=37501267"
+	},
+	"item": [
+		{
+			"name": "CreateCart",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/carts",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"carts"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ViewCart",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/carts/{{cartId}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"carts",
+						"{{cartId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "AddToCart",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"product\": \"brick\",\r\n    \"quantity\": 100\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/carts/{{cartId}}/items",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"carts",
+						"{{cartId}}",
+						"items"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "RemoveFromCart",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseURL}}/carts/{{cartId}}/items/{{itemId}}",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"carts",
+						"{{cartId}}",
+						"items",
+						"{{itemId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "http://localhost:8080",
+			"type": "default"
+		},
+		{
+			"key": "cartId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "itemId",
+			"value": "1",
+			"type": "string"
+		}
+	]
+}

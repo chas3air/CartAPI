@@ -37,33 +37,13 @@ func (c *CartApiService) CreateCart(ctx context.Context) (models.Cart, error) {
 
 	select {
 	case <-ctx.Done():
-		if err := ctx.Err(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				log.Warn("context canceled", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-			} else if errors.Is(err, context.DeadlineExceeded) {
-				log.Warn("deadline exceeded", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-			} else {
-				log.Error("unexpected error", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, err)
-			}
-		}
+		return models.Cart{}, handleContextError(log, ctx, op)
 	default:
 	}
 
 	cart, err := c.storage.CreateCart(ctx)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			log.Warn("context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-		} else {
-			log.Error("Failed to create a cart", sl.Err(err))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, err)
-		}
+		return models.Cart{}, handleDatabaseError(log, err, op, "Failed to create a cart")
 	}
 
 	return cart, nil
@@ -75,36 +55,13 @@ func (c *CartApiService) AddToCart(ctx context.Context, cartId int, item models.
 
 	select {
 	case <-ctx.Done():
-		if err := ctx.Err(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				log.Warn("context canceled", sl.Err(err))
-				return models.CartItem{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-			} else if errors.Is(err, context.DeadlineExceeded) {
-				log.Warn("deadline exceeded", sl.Err(err))
-				return models.CartItem{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-			} else {
-				log.Error("unexpected error", sl.Err(err))
-				return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
-			}
-		}
+		return models.CartItem{}, handleContextError(log, ctx, op)
 	default:
 	}
 
 	cartItem, err := c.storage.AddToCart(ctx, cartId, item)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			log.Warn("context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			return models.CartItem{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			return models.CartItem{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-		} else if errors.Is(err, databaseerrors.ErrNotFound) {
-			log.Warn("cart not found", sl.Err(serviceerrors.ErrNotFound))
-			return models.CartItem{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrNotFound)
-		} else {
-			log.Error("Failed to add item to cart", sl.Err(err))
-			return models.CartItem{}, fmt.Errorf("%s: %w", op, err)
-		}
+		return models.CartItem{}, handleDatabaseError(log, err, op, "Failed to add item to cart")
 	}
 
 	return cartItem, nil
@@ -116,36 +73,13 @@ func (c *CartApiService) RemoveFromCart(ctx context.Context, cartId int, itemId 
 
 	select {
 	case <-ctx.Done():
-		if err := ctx.Err(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				log.Warn("context canceled", sl.Err(err))
-				return fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-			} else if errors.Is(err, context.DeadlineExceeded) {
-				log.Warn("deadline exceeded", sl.Err(err))
-				return fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-			} else {
-				log.Error("unexpected error", sl.Err(err))
-				return fmt.Errorf("%s: %w", op, err)
-			}
-		}
+		return handleContextError(log, ctx, op)
 	default:
 	}
 
 	err := c.storage.RemoveFromCart(ctx, cartId, itemId)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			log.Warn("context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			return fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			return fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-		} else if errors.Is(err, databaseerrors.ErrNotFound) {
-			log.Warn("cart or item doesn't exist", sl.Err(serviceerrors.ErrNotFound))
-			return fmt.Errorf("%s: %w", op, serviceerrors.ErrNotFound)
-		} else {
-			log.Error("Failed to remove item from cart", sl.Err(err))
-			return fmt.Errorf("%s: %w", op, err)
-		}
+		return handleDatabaseError(log, err, op, "Failed to remove item from cart")
 	}
 
 	return nil
@@ -157,37 +91,44 @@ func (c *CartApiService) ViewCart(ctx context.Context, cartId int) (models.Cart,
 
 	select {
 	case <-ctx.Done():
-		if err := ctx.Err(); err != nil {
-			if errors.Is(err, context.Canceled) {
-				log.Warn("context canceled", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-			} else if errors.Is(err, context.DeadlineExceeded) {
-				log.Warn("deadline exceeded", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-			} else {
-				log.Error("unexpected error", sl.Err(err))
-				return models.Cart{}, fmt.Errorf("%s: %w", op, err)
-			}
-		}
+		return models.Cart{}, handleContextError(log, ctx, op)
 	default:
 	}
 
 	cart, err := c.storage.ViewCart(ctx, cartId)
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			log.Warn("context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
-		} else if errors.Is(err, databaseerrors.ErrNotFound) {
-			log.Warn("cart not found", sl.Err(serviceerrors.ErrNotFound))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, serviceerrors.ErrNotFound)
-		} else {
-			log.Error("Failed to get items from cart", sl.Err(err))
-			return models.Cart{}, fmt.Errorf("%s: %w", op, err)
-		}
+		return models.Cart{}, handleDatabaseError(log, err, op, "Failed to get items from cart")
 	}
 
 	return cart, nil
+}
+
+func handleContextError(log *slog.Logger, ctx context.Context, op string) error {
+	if err := ctx.Err(); err != nil {
+		if errors.Is(err, context.Canceled) {
+			log.Warn("context canceled", sl.Err(err))
+			return fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
+		} else if errors.Is(err, context.DeadlineExceeded) {
+			log.Warn("deadline exceeded", sl.Err(err))
+			return fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
+		}
+	}
+
+	return nil
+}
+
+func handleDatabaseError(log *slog.Logger, err error, op string, msg string) error {
+	if errors.Is(err, context.Canceled) {
+		log.Warn("context canceled", sl.Err(serviceerrors.ErrContextCanceled))
+		return fmt.Errorf("%s: %w", op, serviceerrors.ErrContextCanceled)
+	} else if errors.Is(err, context.DeadlineExceeded) {
+		log.Warn("deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
+		return fmt.Errorf("%s: %w", op, serviceerrors.ErrDeadlineExceeded)
+	} else if errors.Is(err, databaseerrors.ErrNotFound) {
+		log.Warn("cart not found", sl.Err(serviceerrors.ErrNotFound))
+		return fmt.Errorf("%s: %w", op, serviceerrors.ErrNotFound)
+	} else {
+		log.Error(msg, sl.Err(err))
+		return fmt.Errorf("%s: %w", op, err)
+	}
 }

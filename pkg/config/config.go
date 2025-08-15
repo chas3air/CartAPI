@@ -26,23 +26,25 @@ type Config struct {
 	Psql PsqlConfig `mapstructure:"psql_conn"`
 }
 
-func MustLoad() *Config {
+func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Fatalf("Error reading config file, %s", err)
+		log.Printf("Error reading config file, %s\n", err)
+		return nil, err
 	}
 
 	var cfg Config
 	err = viper.Unmarshal(&cfg)
 	if err != nil {
-		log.Fatalf("Unable to decode into struct, %v", err)
+		log.Printf("Unable to decode into struct, %v\n", err)
+		return nil, err
 	}
 
-	return &cfg
+	return &cfg, nil
 }
 
 func (c *Config) ConnectionString() string {
