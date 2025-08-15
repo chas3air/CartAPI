@@ -56,8 +56,11 @@ func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
 	}
 }
 
-func (s *Storage) Close() {
-	s.db.Close()
+func (s *Storage) Close() error {
+	if err := s.db.Close(); err != nil {
+		return fmt.Errorf("failed to close database connection: %w", err)
+	}
+	return nil
 }
 
 func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
@@ -210,7 +213,7 @@ func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error)
 	}
 
 	if count == 0 {
-		log.Error("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
+		log.Warn("Cart doesn't exist", sl.Err(databaseerrors.ErrNotFound))
 		return models.Cart{}, fmt.Errorf("%s: %w", op, databaseerrors.ErrNotFound)
 	}
 

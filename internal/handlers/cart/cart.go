@@ -167,8 +167,8 @@ func handleServiceError(w http.ResponseWriter, log *slog.Logger, err error, msg 
 		log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
 		http.Error(w, "Cart not found", http.StatusNotFound)
 	} else {
-		log.Error("Failed to view the cart", sl.Err(err))
-		http.Error(w, "Failed to view the cart", http.StatusInternalServerError)
+		log.Error(msg, sl.Err(err))
+		http.Error(w, msg, http.StatusInternalServerError)
 	}
 }
 
