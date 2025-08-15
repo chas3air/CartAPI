@@ -11,8 +11,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-
-	"github.com/go-playground/validator/v10"
 )
 
 const StatusClientClosedRequest = 499
@@ -82,9 +80,15 @@ func (h *Handler) AddToCart(w http.ResponseWriter, r *http.Request, cartIdStr st
 		return
 	}
 
-	if err := validator.New().Struct(item); err != nil {
-		log.Error("Failed to validate", sl.Err(err))
-		http.Error(w, "Failed to validate", http.StatusBadRequest)
+	if item.Product == "" {
+		log.Error("Product field is required", sl.Err(errors.New("product field is required")))
+		http.Error(w, "Product field is required", http.StatusBadRequest)
+		return
+	}
+
+	if item.Quantity <= 0 {
+		log.Error("Quantity must be greater than zero", sl.Err(errors.New("quantity must be greater than zero")))
+		http.Error(w, "Quantity must be greater than zero", http.StatusBadRequest)
 		return
 	}
 
@@ -174,7 +178,10 @@ func handleServiceError(w http.ResponseWriter, log *slog.Logger, err error, msg 
 
 func parseCartID(cartIdStr string) (int, error) {
 	id, err := strconv.Atoi(cartIdStr)
-	if err != nil || id <= 0 {
+	if err != nil {
+		return 0, errors.New("invalid cartId, must be a positive integer")
+	}
+	if id <= 0 {
 		return 0, errors.New("invalid cartId, must be a positive integer")
 	}
 	return id, nil
@@ -182,7 +189,10 @@ func parseCartID(cartIdStr string) (int, error) {
 
 func parseItemID(itemIdStr string) (int, error) {
 	id, err := strconv.Atoi(itemIdStr)
-	if err != nil || id <= 0 {
+	if err != nil {
+		return 0, errors.New("invalid itemId, must be a positive integer")
+	}
+	if id <= 0 {
 		return 0, errors.New("invalid itemId, must be a positive integer")
 	}
 	return id, nil
