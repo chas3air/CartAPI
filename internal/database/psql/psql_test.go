@@ -11,7 +11,7 @@ import (
 	databaseerrors "cartapi/internal/database"
 	"cartapi/internal/database/psql"
 	"cartapi/internal/models"
-	"cartapi/pkg/lib/logger/slogdiscard"
+	"cartapi/pkg/logger/slogdiscard"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"

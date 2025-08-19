@@ -3,7 +3,7 @@ package psql
 import (
 	databaseerrors "cartapi/internal/database"
 	"cartapi/internal/models"
-	"cartapi/pkg/lib/logger/sl"
+	"cartapi/pkg/logger/sl"
 	"context"
 	"database/sql"
 	"errors"
@@ -36,17 +36,28 @@ func New(log *slog.Logger, connStr string) (*Storage, error) {
 		log.With("op", op).Error("Error getting work dir", sl.Err(err))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	migrationsPath := filepath.Join(wd, "migrations")
 
-	if err := goose.Up(db.DB, migrationsPath); err != nil {
+	storage := &Storage{
+		log: log,
+		db:  db,
+	}
+
+	migrationsPath := filepath.Join(wd, "migrations")
+	if err := storage.applyMigrations(db.DB, migrationsPath); err != nil {
 		log.With("op", op).Error("Error applying migrations", sl.Err(err))
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return &Storage{
-		log: log,
-		db:  db,
-	}, nil
+	return storage, nil
+}
+
+func (s *Storage) applyMigrations(db *sql.DB, migrationsPath string) error {
+	const op = "database.psql.applyMigrations"
+	if err := goose.Up(db, migrationsPath); err != nil {
+		s.log.With("op", op).Error("Error applying migrations", sl.Err(err))
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	return nil
 }
 
 func NewWithParams(log *slog.Logger, db *sqlx.DB) *Storage {
@@ -67,13 +78,6 @@ func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
 	const op = "database.psql.CreateCart"
 	log := s.log.With("op", op)
 
-	select {
-	case <-ctx.Done():
-		log.Error("Context is over", sl.Err(ctx.Err()))
-		return models.Cart{}, fmt.Errorf("%s: %w", op, ctx.Err())
-	default:
-	}
-
 	var cartId int
 	err := s.db.QueryRowxContext(ctx, `
         INSERT INTO cart
@@ -85,19 +89,12 @@ func (s *Storage) CreateCart(ctx context.Context) (models.Cart, error) {
 		return models.Cart{}, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return models.Cart{Id: cartId}, nil
+	return models.Cart{Id: cartId, Items: []models.CartItem{}}, nil
 }
 
 func (s *Storage) AddToCart(ctx context.Context, cartId int, item models.CartItem) (models.CartItem, error) {
 	const op = "database.psql.AddToCart"
 	log := s.log.With("op", op)
-
-	select {
-	case <-ctx.Done():
-		log.Error("Context is over", sl.Err(ctx.Err()))
-		return models.CartItem{}, fmt.Errorf("%s: %w", op, ctx.Err())
-	default:
-	}
 
 	tx, err := s.db.Beginx()
 	if err != nil {
@@ -144,13 +141,6 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 	const op = "database.psql.RemoveFromCart"
 	log := s.log.With("op", op)
 
-	select {
-	case <-ctx.Done():
-		log.Error("Context is over", sl.Err(ctx.Err()))
-		return fmt.Errorf("%s: %w", op, ctx.Err())
-	default:
-	}
-
 	tx, err := s.db.Beginx()
 	if err != nil {
 		log.Error("Failed to begin transaction", sl.Err(err))
@@ -194,13 +184,6 @@ func (s *Storage) RemoveFromCart(ctx context.Context, cartId int, itemId int) er
 func (s *Storage) ViewCart(ctx context.Context, cartId int) (models.Cart, error) {
 	const op = "database.psql.ViewCart"
 	log := s.log.With("op", op)
-
-	select {
-	case <-ctx.Done():
-		log.Error("Context is over", sl.Err(ctx.Err()))
-		return models.Cart{}, fmt.Errorf("%s: %w", op, ctx.Err())
-	default:
-	}
 
 	var count int
 	row := s.db.QueryRowContext(ctx, `
