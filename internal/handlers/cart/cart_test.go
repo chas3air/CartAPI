@@ -55,7 +55,7 @@ func TestHandler_CreateCart(t *testing.T) {
 				s.On("CreateCart", mock.Anything).Return(models.Cart{}, serviceerrors.ErrDeadlineExceeded)
 			},
 			reqContext:   func() context.Context { ctx, cancel := context.WithCancel(context.Background()); cancel(); return ctx }(),
-			expectedCode: http.StatusGatewayTimeout,
+			expectedCode: http.StatusRequestTimeout,
 		},
 		{
 			name: "Failed to create cart",

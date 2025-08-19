@@ -166,7 +166,7 @@ func handleServiceError(w http.ResponseWriter, log *slog.Logger, err error, msg 
 		http.Error(w, "", StatusClientClosedRequest)
 	} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
 		log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-		http.Error(w, "", http.StatusGatewayTimeout)
+		http.Error(w, "", http.StatusRequestTimeout)
 	} else if errors.Is(err, serviceerrors.ErrNotFound) {
 		log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
 		http.Error(w, "Cart not found", http.StatusNotFound)

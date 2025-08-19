@@ -46,7 +46,7 @@ func TestCreateCart(t *testing.T) {
 				mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO cart DEFAULT VALUES RETURNING id")).WillReturnRows(rows)
 			},
 			ctx:        context.Background(),
-			expectCart: models.Cart{Id: 123},
+			expectCart: models.Cart{Id: 123, Items: []models.CartItem{}},
 			expectErr:  nil,
 		},
 		{
