@@ -6,17 +6,17 @@ import (
 	"testing"
 
 	databaseerrors "cartapi/internal/database"
-	"cartapi/internal/handlers/cart/mocks"
 	"cartapi/internal/models"
 	serviceerrors "cartapi/internal/service"
 	cartservice "cartapi/internal/service/cart"
-	"cartapi/pkg/lib/logger/slogdiscard"
+	"cartapi/internal/service/cart/mocks"
+	"cartapi/pkg/logger/slogdiscard"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func newTestService(storage *mocks.Service) *cartservice.CartApiService {
+func newTestService(storage *mocks.Storage) *cartservice.CartApiService {
 	logger := slogdiscard.NewDiscardLogger()
 	return cartservice.New(logger, storage)
 }
@@ -24,14 +24,14 @@ func newTestService(storage *mocks.Service) *cartservice.CartApiService {
 func TestCreateCart(t *testing.T) {
 	tests := []struct {
 		name      string
-		mockSetup func(s *mocks.Service)
+		mockSetup func(s *mocks.Storage)
 		wantCart  models.Cart
 		wantErr   bool
 		errType   error
 	}{
 		{
 			name: "Success",
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("CreateCart", mock.Anything).Return(models.Cart{}, nil)
 			},
 			wantCart: models.Cart{},
@@ -39,7 +39,7 @@ func TestCreateCart(t *testing.T) {
 		},
 		{
 			name: "Context canceled error",
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("CreateCart", mock.Anything).Return(models.Cart{}, serviceerrors.ErrContextCanceled)
 			},
 			wantErr: true,
@@ -47,7 +47,7 @@ func TestCreateCart(t *testing.T) {
 		},
 		{
 			name: "Deadline exceeded error",
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("CreateCart", mock.Anything).Return(models.Cart{}, serviceerrors.ErrDeadlineExceeded)
 			},
 			wantErr: true,
@@ -55,7 +55,7 @@ func TestCreateCart(t *testing.T) {
 		},
 		{
 			name: "Generic error",
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("CreateCart", mock.Anything).Return(models.Cart{}, errors.New("error"))
 			},
 			wantErr: true,
@@ -64,7 +64,7 @@ func TestCreateCart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockStorage := new(mocks.Service)
+			mockStorage := new(mocks.Storage)
 			tc.mockSetup(mockStorage)
 			svc := newTestService(mockStorage)
 
@@ -88,7 +88,7 @@ func TestAddToCart(t *testing.T) {
 		name      string
 		cartId    int
 		item      models.CartItem
-		mockSetup func(s *mocks.Service)
+		mockSetup func(s *mocks.Storage)
 		wantItem  models.CartItem
 		wantErr   bool
 		errType   error
@@ -97,7 +97,7 @@ func TestAddToCart(t *testing.T) {
 			name:   "Success",
 			cartId: 1,
 			item:   models.CartItem{Id: 1, CartId: 1, Product: "item", Quantity: 10},
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("AddToCart", mock.Anything, 1, mock.Anything).Return(models.CartItem{
 					Id:       1,
 					CartId:   1,
@@ -112,7 +112,7 @@ func TestAddToCart(t *testing.T) {
 			name:   "Context canceled error",
 			cartId: 1,
 			item:   models.CartItem{},
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("AddToCart", mock.Anything, 1, mock.Anything).Return(models.CartItem{}, serviceerrors.ErrContextCanceled)
 			},
 			wantErr: true,
@@ -122,7 +122,7 @@ func TestAddToCart(t *testing.T) {
 			name:   "Deadline exceeded error",
 			cartId: 1,
 			item:   models.CartItem{},
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("AddToCart", mock.Anything, 1, mock.Anything).Return(models.CartItem{}, serviceerrors.ErrDeadlineExceeded)
 			},
 			wantErr: true,
@@ -132,7 +132,7 @@ func TestAddToCart(t *testing.T) {
 			name:   "NotFound error",
 			cartId: 1,
 			item:   models.CartItem{Id: 1, CartId: 1, Product: "item", Quantity: 10},
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("AddToCart", mock.Anything, 1, mock.Anything).Return(models.CartItem{}, databaseerrors.ErrNotFound)
 			},
 			wantErr: true,
@@ -142,7 +142,7 @@ func TestAddToCart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockStorage := new(mocks.Service)
+			mockStorage := new(mocks.Storage)
 			tc.mockSetup(mockStorage)
 			svc := newTestService(mockStorage)
 
@@ -166,7 +166,7 @@ func TestRemoveFromCart(t *testing.T) {
 		name      string
 		cartId    int
 		itemId    int
-		mockSetup func(s *mocks.Service)
+		mockSetup func(s *mocks.Storage)
 		wantErr   bool
 		errType   error
 	}{
@@ -174,7 +174,7 @@ func TestRemoveFromCart(t *testing.T) {
 			name:   "Success",
 			cartId: 1,
 			itemId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("RemoveFromCart", mock.Anything, 1, 1).Return(nil)
 			},
 			wantErr: false,
@@ -183,7 +183,7 @@ func TestRemoveFromCart(t *testing.T) {
 			name:   "Context canceled error",
 			cartId: 1,
 			itemId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("RemoveFromCart", mock.Anything, 1, 1).Return(serviceerrors.ErrContextCanceled)
 			},
 			wantErr: true,
@@ -193,7 +193,7 @@ func TestRemoveFromCart(t *testing.T) {
 			name:   "Deadline exceeded error",
 			cartId: 1,
 			itemId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("RemoveFromCart", mock.Anything, 1, 1).Return(serviceerrors.ErrDeadlineExceeded)
 			},
 			wantErr: true,
@@ -203,7 +203,7 @@ func TestRemoveFromCart(t *testing.T) {
 			name:   "NotFound error",
 			cartId: 1,
 			itemId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("RemoveFromCart", mock.Anything, 1, 1).Return(databaseerrors.ErrNotFound)
 			},
 			wantErr: true,
@@ -213,7 +213,7 @@ func TestRemoveFromCart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockStorage := new(mocks.Service)
+			mockStorage := new(mocks.Storage)
 			tc.mockSetup(mockStorage)
 			svc := newTestService(mockStorage)
 
@@ -235,7 +235,7 @@ func TestViewCart(t *testing.T) {
 	tests := []struct {
 		name      string
 		cartId    int
-		mockSetup func(s *mocks.Service)
+		mockSetup func(s *mocks.Storage)
 		wantCart  models.Cart
 		wantErr   bool
 		errType   error
@@ -243,7 +243,7 @@ func TestViewCart(t *testing.T) {
 		{
 			name:   "Success",
 			cartId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("ViewCart", mock.Anything, 1).Return(models.Cart{
 					Id: 1,
 					Items: []models.CartItem{
@@ -262,7 +262,7 @@ func TestViewCart(t *testing.T) {
 		{
 			name:   "Context canceled error",
 			cartId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("ViewCart", mock.Anything, 1).Return(models.Cart{}, serviceerrors.ErrContextCanceled)
 			},
 			wantErr: true,
@@ -271,7 +271,7 @@ func TestViewCart(t *testing.T) {
 		{
 			name:   "Deadline exceeded error",
 			cartId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("ViewCart", mock.Anything, 1).Return(models.Cart{}, serviceerrors.ErrDeadlineExceeded)
 			},
 			wantErr: true,
@@ -280,7 +280,7 @@ func TestViewCart(t *testing.T) {
 		{
 			name:   "NotFound error",
 			cartId: 1,
-			mockSetup: func(s *mocks.Service) {
+			mockSetup: func(s *mocks.Storage) {
 				s.On("ViewCart", mock.Anything, 1).Return(models.Cart{}, databaseerrors.ErrNotFound)
 			},
 			wantErr: true,
@@ -290,7 +290,7 @@ func TestViewCart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			mockStorage := new(mocks.Service)
+			mockStorage := new(mocks.Storage)
 			tc.mockSetup(mockStorage)
 			svc := newTestService(mockStorage)
 
