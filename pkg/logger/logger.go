@@ -2,7 +2,7 @@ package logger
 
 import (
 	constants "cartapi/pkg/config"
-	"cartapi/pkg/lib/logger/handler/slogpretty"
+	"cartapi/pkg/logger/handler/slogpretty"
 	"errors"
 
 	"log/slog"
