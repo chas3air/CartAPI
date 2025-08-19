@@ -13,7 +13,7 @@ import (
 	"cartapi/internal/handlers/cart/mocks"
 	"cartapi/internal/models"
 	serviceerrors "cartapi/internal/service"
-	"cartapi/pkg/lib/logger/slogdiscard"
+	"cartapi/pkg/logger/slogdiscard"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

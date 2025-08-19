@@ -3,7 +3,7 @@ package carthandler
 import (
 	"cartapi/internal/models"
 	serviceerrors "cartapi/internal/service"
-	"cartapi/pkg/lib/logger/sl"
+	"cartapi/pkg/logger/sl"
 	"context"
 	"encoding/json"
 	"errors"
@@ -163,10 +163,10 @@ func (h *Handler) ViewCart(w http.ResponseWriter, r *http.Request, cartIdStr str
 func handleServiceError(w http.ResponseWriter, log *slog.Logger, err error, msg string) {
 	if errors.Is(err, serviceerrors.ErrContextCanceled) {
 		log.Warn("Context canceled", sl.Err(serviceerrors.ErrContextCanceled))
-		http.Error(w, "Context canceled", StatusClientClosedRequest)
+		http.Error(w, "", StatusClientClosedRequest)
 	} else if errors.Is(err, serviceerrors.ErrDeadlineExceeded) {
 		log.Warn("Deadline exceeded", sl.Err(serviceerrors.ErrDeadlineExceeded))
-		http.Error(w, "Deadline exceeded", http.StatusGatewayTimeout)
+		http.Error(w, "", http.StatusGatewayTimeout)
 	} else if errors.Is(err, serviceerrors.ErrNotFound) {
 		log.Warn("Cart not found", sl.Err(serviceerrors.ErrNotFound))
 		http.Error(w, "Cart not found", http.StatusNotFound)
