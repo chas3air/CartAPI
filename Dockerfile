@@ -20,9 +20,7 @@ RUN apk --no-cache add ca-certificates tzdata
 COPY --from=build /cli /cli
 
 COPY --from=build /src/migrations ./migrations
-COPY config.yaml config.yaml
 
 EXPOSE 8080
 
-# ENTRYPOINT ["tail", "-f", "/dev/null"]
 CMD ["./cli"]
