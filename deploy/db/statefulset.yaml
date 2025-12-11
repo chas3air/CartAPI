@@ -1,8 +1,10 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: cartapi-postgres-deployment
+  name: cartapi-postgres-statefulset
+  namespace: test
 spec:
+  serviceName: "cartapi-postgres-headless"
   replicas: 1
   selector:
     matchLabels:
@@ -42,7 +44,13 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
-      volumes:
-        - name: postgres-storage
-          persistentVolumeClaim:
-            claimName: cartapi-postgres-pvc
+
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "standard"
+        resources:
+          requests:
+            storage: 100Mi

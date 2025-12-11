@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cartapi-app-config
+  namespace: test
 data:
   HTTP_ENV: "local"
   HTTP_PORT: "8080"

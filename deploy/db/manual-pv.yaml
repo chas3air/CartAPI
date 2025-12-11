@@ -2,6 +2,7 @@ apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: cartapi-postgres-pv-manual
+  namespace: test
   labels:
     type: local
 spec:

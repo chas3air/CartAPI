@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: cartapi-postgres-config
+  namespace: test
 data:
   POSTGRES_USER: postgres
   POSTGRES_DB: cartapi
