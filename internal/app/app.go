@@ -32,7 +32,7 @@ func Run() error {
 
 	storage, err := psql.New(log, cfg.ConnectionString())
 	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+		// return fmt.Errorf("%s: %w", op, err)
 	}
 
 	cartItemService := cartservice.New(log, storage)
