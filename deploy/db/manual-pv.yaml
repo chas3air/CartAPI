@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cartapi-postgres-pv-manual
+  namespace: test
+  labels:
+    type: local
+spec:
+  storageClassName: standard
+  capacity:
+    storage: 100Mi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/cartapi-postgres-manual"

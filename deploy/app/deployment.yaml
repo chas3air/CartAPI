@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartapi-app-deployment
+  namespace: test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cartapi-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cartapi-app
+    spec:
+      containers:
+        - image: chas3air/cartapi_app:demo-v1
+          name: cartapi-app
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cartapi-app-config
+            - secretRef:
+                name: cartapi-app-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi

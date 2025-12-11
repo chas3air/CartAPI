@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cartapi-postgres-statefulset
+  namespace: test
+spec:
+  serviceName: "cartapi-postgres-headless"
+  replicas: 1
+  selector:
+    matchLabels:
+      db.kubernetes.io/name: cartapi-postgres
+  template:
+    metadata:
+      labels:
+        db.kubernetes.io/name: cartapi-postgres
+    spec:
+      containers:
+        - name: cartapi-postgres
+          image: postgres:latest
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: cartapi-postgres-secrets
+            - configMapRef:
+                name: cartapi-postgres-config
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - mountPath: /var/lib/postgresql
+              name: postgres-storage
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: "standard"
+        resources:
+          requests:
+            storage: 100Mi
