@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: cartapi-service
+  name: cartapi-app-service
 spec:
   selector:
-    app.kubernetes.io/name: cartapi
+    app.kubernetes.io/name: cartapi-app
   ports:
     - port: 80
       targetPort: 8080
