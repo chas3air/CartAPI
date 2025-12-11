@@ -4,9 +4,9 @@ metadata:
   name: cartapi-app-ingress
   namespace: test
 spec:
+  ingressClassName: nginx
   rules:
-    - host: localhost
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix

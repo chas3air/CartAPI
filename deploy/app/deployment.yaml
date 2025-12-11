@@ -18,6 +18,11 @@ spec:
           name: cartapi-app
           ports:
             - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: cartapi-app-config
+            - secretRef:
+                name: cartapi-app-secrets
           resources:
             requests:
               cpu: 100m
