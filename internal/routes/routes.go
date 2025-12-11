@@ -17,6 +17,11 @@ func New(cartItemHandler *carthandler.Handler) *Routes {
 }
 
 func (r *Routes) Register() {
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
 	// POST /carts
 	http.HandleFunc("/carts", r.cartItemHandler.CreateCart)
 	http.HandleFunc("/carts/", r.pathParser)
