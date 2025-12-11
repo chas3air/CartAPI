@@ -33,7 +33,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
           volumeMounts:
-            - mountPath: /var/lib/postgresql/data
+            - mountPath: /var/lib/postgresql
               name: postgres-storage
           resources:
             requests:
