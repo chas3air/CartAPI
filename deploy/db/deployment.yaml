@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cartapi-postgres-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      db.kubernetes.io/name: cartapi-postgres
+  template:
+    metadata:
+      labels:
+        db.kubernetes.io/name: cartapi-postgres
+    spec:
+      containers:
+        - name: cartapi-postgres
+          image: postgres:latest
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: cartapi-postgres-secrets
+            - configMapRef:
+                name: cartapi-postgres-config
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgres-storage
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: cartapi-postgres-pvc

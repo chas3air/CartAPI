@@ -13,7 +13,7 @@ spec:
         app.kubernetes.io/name: cartapi-app
     spec:
       containers:
-        - image: chas3air/cartapi:demo-v1
+        - image: chas3air/cartapi_app:demo-v1
           name: cartapi-app
           ports:
             - containerPort: 8080

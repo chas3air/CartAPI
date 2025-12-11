@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cartapi-postgres-service
+spec:
+  selector:
+    db.kubernetes.io/name: cartapi-postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
