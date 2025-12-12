@@ -1,0 +1,54 @@
+replicaCount: 2
+
+image:
+  repository: chas3air/cartapi_app
+  tag: demo-v1
+  pullPolicy: IfNotPresent
+
+namespace: test
+
+http:
+  env: local
+  port: 8080
+
+psql:
+  host: cartapi-postgres-service
+  port: 5432
+  database: cartapi
+  sslmode: disable
+  user: postgres
+  password: "123"
+
+labels:
+  app:
+    name: cartapi-app
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 100Mi
+  limits:
+    cpu: 200m
+    memory: 200Mi
+
+configMapName: cartapi-app-config
+secretName: cartapi-app-secrets
+
+autoscaling:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 50
+
+ingress:
+  enabled: true
+  className: nginx
+  name: cartapi-app-ingress
+  path: /
+  pathType: Prefix
+  serviceName: cartapi-app-service
+  servicePort: 80
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080

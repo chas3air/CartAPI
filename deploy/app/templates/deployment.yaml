@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}-deployment"
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.labels.app.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.labels.app.name }}
+    spec:
+      containers:
+        - name: {{ .Values.labels.app.name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.http.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.configMapName }}
+            - secretRef:
+                name: {{ .Values.secretName }}
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
