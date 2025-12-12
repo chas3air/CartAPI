@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Values.statefulSetName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  serviceName: "{{ .Values.serviceName }}-headless"
+  replicas: 1
+  selector:
+    matchLabels:
+      db.kubernetes.io/name: cartapi-postgres
+  template:
+    metadata:
+      labels:
+        db.kubernetes.io/name: cartapi-postgres
+    spec:
+      containers:
+        - name: cartapi-postgres
+          image: "{{ .Values.postgres.image }}"
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.secretName }}
+            - configMapRef:
+                name: {{ .Values.configMapName }}
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.postgres.user }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.postgres.user }}"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - mountPath: /var/lib/postgresql
+              name: postgres-storage
+          resources:
+            requests:
+              memory: {{ .Values.resources.requests.memory }}
+              cpu: {{ .Values.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.resources.limits.memory }}
+              cpu: {{ .Values.resources.limits.cpu }}
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.storage.className }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}
