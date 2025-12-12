@@ -1,0 +1,28 @@
+namespace: test
+
+postgres:
+  user: postgres
+  database: cartapi
+  password: "123"
+  image: postgres:latest
+  port: 5432
+
+storage:
+  className: standard
+  size: 100Mi
+  hostPath: /mnt/data/cartapi-postgres-manual
+
+resources:
+  requests:
+    memory: 256Mi
+    cpu: 250m
+  limits:
+    memory: 512Mi
+    cpu: 500m
+
+configMapName: cartapi-postgres-config
+secretName: cartapi-postgres-secrets
+serviceName: cartapi-postgres-service
+statefulSetName: cartapi-postgres-statefulset
+pvName: cartapi-postgres-pv-manual
+pvcName: cartapi-postgres-pvc
